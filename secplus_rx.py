@@ -6,7 +6,7 @@
 #
 # GNU Radio Python Flow Graph
 # Title: Secplus Rx
-# GNU Radio version: 3.8.0.0
+# GNU Radio version: 3.8.1.0
 
 from distutils.version import StrictVersion
 
@@ -33,9 +33,8 @@ import signal
 from argparse import ArgumentParser
 from gnuradio.eng_arg import eng_float, intx
 from gnuradio import eng_notation
+import limesdr
 import math
-import osmosdr
-import time
 import secplus_decode
 from gnuradio import qtgui
 
@@ -76,7 +75,7 @@ class secplus_rx(gr.top_block, Qt.QWidget):
         # Variables
         ##################################################
         self.threshold = threshold = 0.05
-        self.samp_rate = samp_rate = 2000000
+        self.samp_rate = samp_rate = 3000000
         self.freq = freq = 315150000
         self.decim2 = decim2 = 100
         self.decim1 = decim1 = 2
@@ -167,18 +166,25 @@ class secplus_rx(gr.top_block, Qt.QWidget):
 
         self._qtgui_time_sink_x_0_win = sip.wrapinstance(self.qtgui_time_sink_x_0.pyqwidget(), Qt.QWidget)
         self.top_grid_layout.addWidget(self._qtgui_time_sink_x_0_win)
-        self.osmosdr_source_0 = osmosdr.source(
-            args="numchan=" + str(1) + " " + ''
-        )
-        self.osmosdr_source_0.set_time_unknown_pps(osmosdr.time_spec_t())
-        self.osmosdr_source_0.set_sample_rate(samp_rate)
-        self.osmosdr_source_0.set_center_freq(freq - 300e3, 0)
-        self.osmosdr_source_0.set_freq_corr(0, 0)
-        self.osmosdr_source_0.set_gain(30, 0)
-        self.osmosdr_source_0.set_if_gain(32, 0)
-        self.osmosdr_source_0.set_bb_gain(32, 0)
-        self.osmosdr_source_0.set_antenna('', 0)
-        self.osmosdr_source_0.set_bandwidth(1e6, 0)
+        self.limesdr_source_0 = limesdr.source('1D4C29E4AA7E8D', 0, '')
+
+
+        self.limesdr_source_0.set_sample_rate(samp_rate)
+
+
+        self.limesdr_source_0.set_center_freq(freq, 0)
+
+
+
+
+
+        self.limesdr_source_0.set_gain(6, 0)
+
+
+        self.limesdr_source_0.set_antenna(1, 0)
+
+
+        self.limesdr_source_0.calibrate(2.5e6, 0)
         self.blocks_rotator_cc_0 = blocks.rotator_cc(2 * math.pi * -300e3 / samp_rate)
         self.blocks_complex_to_mag_0 = blocks.complex_to_mag(1)
 
@@ -189,7 +195,7 @@ class secplus_rx(gr.top_block, Qt.QWidget):
         ##################################################
         self.connect((self.blocks_complex_to_mag_0, 0), (self.rational_resampler_xxx_1, 0))
         self.connect((self.blocks_rotator_cc_0, 0), (self.rational_resampler_xxx_0, 0))
-        self.connect((self.osmosdr_source_0, 0), (self.blocks_rotator_cc_0, 0))
+        self.connect((self.limesdr_source_0, 0), (self.blocks_rotator_cc_0, 0))
         self.connect((self.rational_resampler_xxx_0, 0), (self.blocks_complex_to_mag_0, 0))
         self.connect((self.rational_resampler_xxx_1, 0), (self.qtgui_time_sink_x_0, 0))
         self.connect((self.rational_resampler_xxx_1, 0), (self.secplus_decode, 0))
@@ -213,7 +219,7 @@ class secplus_rx(gr.top_block, Qt.QWidget):
     def set_samp_rate(self, samp_rate):
         self.samp_rate = samp_rate
         self.blocks_rotator_cc_0.set_phase_inc(2 * math.pi * -300e3 / self.samp_rate)
-        self.osmosdr_source_0.set_sample_rate(self.samp_rate)
+        self.limesdr_source_0.set_digital_filter(self.samp_rate, 1)
         self.qtgui_time_sink_x_0.set_samp_rate(self.samp_rate // self.decim1 // self.decim2)
         self.secplus_decode.samp_rate = self.samp_rate // self.decim1 // self.decim2
 
@@ -223,7 +229,7 @@ class secplus_rx(gr.top_block, Qt.QWidget):
     def set_freq(self, freq):
         self.freq = freq
         self._freq_callback(self.freq)
-        self.osmosdr_source_0.set_center_freq(self.freq - 300e3, 0)
+        self.limesdr_source_0.set_center_freq(self.freq, 0)
 
     def get_decim2(self):
         return self.decim2
